@@ -1,0 +1,1782 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ThermoSentinel AI - Real-Time Industrial Thermal Safety Control Room</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              dark: '#050810',
+              card: 'rgba(15, 23, 42, 0.85)',
+              cyan: '#00f2fe',
+              green: '#00e676',
+              warning: '#ffab00',
+              orange: '#ff6d00',
+              red: '#ff5252'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18, ReactDOM 18, Babel Standalone -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+    }
+    .glass-panel-cyan {
+      background: rgba(0, 242, 254, 0.06);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(0, 242, 254, 0.35);
+      border-radius: 12px;
+    }
+    .pulse-red-glow {
+      box-shadow: 0 0 20px rgba(255, 82, 82, 0.7);
+      animation: pulseGlow 1.2s infinite;
+    }
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.7); }
+      70% { box-shadow: 0 0 0 14px rgba(255, 82, 82, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0); }
+    }
+    .scale-gradient.ironbow { background: linear-gradient(to right, #000050, #500090, #c80080, #ff4000, #ffff00, #ffffff); }
+    .scale-gradient.rainbow { background: linear-gradient(to right, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000, #ffffff); }
+    .scale-gradient.whitehot { background: linear-gradient(to right, #000000, #ffffff); }
+    .scale-gradient.blackhot { background: linear-gradient(to right, #ffffff, #000000); }
+
+    .split-handle {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: #00f2fe;
+      cursor: ew-resize;
+      z-index: 30;
+      box-shadow: 0 0 10px rgba(0, 242, 254, 0.9);
+    }
+    .split-knob {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 32px;
+      height: 32px;
+      background: #00f2fe;
+      color: #000;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 900;
+      box-shadow: 0 0 16px rgba(0, 242, 254, 0.9);
+      user-select: none;
+    }
+    .hotspot-box {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      transform: translate(-50%, -50%);
+      border: 2px dashed #ff5252;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 15;
+    }
+    .hotspot-ping {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: rgba(255, 82, 82, 0.35);
+      animation: ping 1.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+    @keyframes ping {
+      75%, 100% { transform: scale(1.6); opacity: 0; }
+    }
+    .spot-probe {
+      position: absolute;
+      display: none;
+      pointer-events: none;
+      transform: translate(-50%, -100%);
+      z-index: 25;
+    }
+    .probe-val {
+      background: rgba(0, 242, 254, 0.95);
+      color: #000;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 800;
+      font-family: monospace;
+    }
+
+    .work-order-document {
+      background: #ffffff;
+      color: #0f172a;
+      padding: 24px;
+      border-radius: 8px;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .wo-header { display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; }
+    .wo-logo { font-weight: 900; font-size: 18px; color: #0284c7; }
+    .wo-alert-banner { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-weight: 700; }
+    .wo-alert-banner.alert-critical { background: #fee2e2; color: #dc2626; border: 1px solid #ef4444; }
+    .wo-alert-banner.alert-high_risk { background: #ffedd5; color: #c2410c; border: 1px solid #f97316; }
+    .wo-alert-banner.alert-warning { background: #fef3c7; color: #b45309; border: 1px solid #f59e0b; }
+    .wo-alert-banner.alert-normal { background: #dcfce7; color: #15803d; border: 1px solid #22c55e; }
+    .wo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .wo-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .wo-table td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
+    .wo-text-box, .wo-action-box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 6px; margin-top: 6px; }
+    .wo-signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; padding-top: 20px; }
+    .sig-line { border-bottom: 1px solid #000; height: 40px; margin-bottom: 6px; }
+    .wo-footer { margin-top: 24px; text-align: center; font-size: 10px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+
+    @media print {
+      body * { visibility: hidden; }
+      .work-order-document, .work-order-document * { visibility: visible; }
+      .work-order-document { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body class="bg-[#050810] text-slate-100 font-sans antialiased h-screen overflow-hidden">
+  
+  <div id="root"></div>
+
+  <!-- Real-Time React 18 Application Script -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // REAL INDUSTRIAL ELECTRICAL ASSET DATASET WITH DAILY & HOURLY SCAN READINGS
+    const INITIAL_ASSETS = [
+      {
+        id: 'TX-101',
+        name: '138kV / 13.8kV Step-Down Transformer 1',
+        standard: 'IEEE C57.12.00 25MVA Oil-Immersed',
+        zone: 'Substation Yard - Zone A',
+        status: 'critical',
+        mapCoords: { x: 220, y: 160 },
+        waypointIndex: 1,
+        ambientTemp: 28.5,
+        referenceTemp: 45.0,
+        currentScanTemp: 89.4,
+        ratedCurrent: 800,
+        actualCurrent: 736,
+        loadPercentage: 92,
+        hotspotTarget: 'Phase B HV Bushing Connector',
+        hotspotPos: { x: 42, y: 38 },
+        hotspotRadius: 28,
+        diagnosis: 'CRITICAL ANOMALY (NETA Class 1): ΔT = +44.4°C over baseline. Phase B bushing connector overheating under 92% load (736A). High resistance contact breakdown.',
+        recommendedAction: 'EMERGENCY: Isolate TX-101 within 2 hours. Micro-ohm contact resistance testing across Phase B bushing lug. Torque bolts to 55 Nm.',
+        lastScanDate: '2026-08-15 16:30:00',
+
+        // DAILY READINGS (Aug 01 to Aug 15)
+        historyDaily: [
+          { date: '2026-08-01', temp: 72.1 },
+          { date: '2026-08-02', temp: 73.4 },
+          { date: '2026-08-03', temp: 74.8 },
+          { date: '2026-08-04', temp: 76.2 },
+          { date: '2026-08-05', temp: 77.5 },
+          { date: '2026-08-06', temp: 78.9 },
+          { date: '2026-08-07', temp: 80.2 },
+          { date: '2026-08-08', temp: 81.6 },
+          { date: '2026-08-09', temp: 83.1 },
+          { date: '2026-08-10', temp: 84.4 },
+          { date: '2026-08-11', temp: 85.8 },
+          { date: '2026-08-12', temp: 87.0 },
+          { date: '2026-08-13', temp: 88.2 },
+          { date: '2026-08-14', temp: 89.0 },
+          { date: '2026-08-15', temp: 89.4 }
+        ],
+
+        // HOURLY READINGS TODAY
+        historyHourly: [
+          { date: '00:00', temp: 84.2 },
+          { date: '02:00', temp: 83.8 },
+          { date: '04:00', temp: 83.5 },
+          { date: '06:00', temp: 85.0 },
+          { date: '08:00', temp: 87.2 },
+          { date: '10:00', temp: 88.6 },
+          { date: '12:00', temp: 89.1 },
+          { date: '14:00', temp: 89.4 },
+          { date: '16:00', temp: 89.6 }
+        ]
+      },
+      {
+        id: 'SG-04B',
+        name: '13.8kV Vacuum Circuit Breaker SG-04B',
+        standard: 'IEEE C37.09 Vacuum Interrupter',
+        zone: 'Switchgear Building - Bay 2',
+        status: 'high_risk',
+        mapCoords: { x: 480, y: 140 },
+        waypointIndex: 2,
+        ambientTemp: 26.0,
+        referenceTemp: 38.0,
+        currentScanTemp: 68.2,
+        ratedCurrent: 1200,
+        actualCurrent: 1008,
+        loadPercentage: 84,
+        hotspotTarget: 'Phase C Lower Cable Terminal Lug',
+        hotspotPos: { x: 65, y: 48 },
+        hotspotRadius: 22,
+        diagnosis: 'HIGH RISK ANOMALY (NETA Class 2): ΔT = +30.2°C over baseline. Phase C lower terminal lug loose under 1008A continuous load.',
+        recommendedAction: 'Schedule maintenance outage within 24 hours. Perform duactor contact resistance test.',
+        lastScanDate: '2026-08-15 16:30:00',
+
+        historyDaily: [
+          { date: '2026-08-01', temp: 58.0 },
+          { date: '2026-08-02', temp: 58.8 },
+          { date: '2026-08-03', temp: 59.5 },
+          { date: '2026-08-04', temp: 60.4 },
+          { date: '2026-08-05', temp: 61.2 },
+          { date: '2026-08-06', temp: 62.0 },
+          { date: '2026-08-07', temp: 62.9 },
+          { date: '2026-08-08', temp: 63.8 },
+          { date: '2026-08-09', temp: 64.6 },
+          { date: '2026-08-10', temp: 65.5 },
+          { date: '2026-08-11', temp: 66.2 },
+          { date: '2026-08-12', temp: 67.0 },
+          { date: '2026-08-13', temp: 67.5 },
+          { date: '2026-08-14', temp: 67.9 },
+          { date: '2026-08-15', temp: 68.2 }
+        ],
+
+        historyHourly: [
+          { date: '00:00', temp: 64.0 },
+          { date: '02:00', temp: 63.8 },
+          { date: '04:00', temp: 63.5 },
+          { date: '06:00', temp: 65.2 },
+          { date: '08:00', temp: 66.8 },
+          { date: '10:00', temp: 67.5 },
+          { date: '12:00', temp: 68.0 },
+          { date: '14:00', temp: 68.2 },
+          { date: '16:00', temp: 68.3 }
+        ]
+      },
+      {
+        id: 'MCC-02',
+        name: 'Auxiliary Water Pump Starter MCC-02',
+        standard: 'NEMA ICS-2 Motor Control Center',
+        zone: 'Pump House - Room 1',
+        status: 'warning',
+        mapCoords: { x: 680, y: 260 },
+        waypointIndex: 3,
+        ambientTemp: 27.0,
+        referenceTemp: 35.0,
+        currentScanTemp: 54.1,
+        ratedCurrent: 400,
+        actualCurrent: 312,
+        loadPercentage: 78,
+        hotspotTarget: 'Contactor Relay 3 Contact Tips',
+        hotspotPos: { x: 34, y: 55 },
+        hotspotRadius: 18,
+        diagnosis: 'MODERATE ANOMALY (NETA Class 3): ΔT = +19.1°C over baseline. Contactor 3 pole tips pitting.',
+        recommendedAction: 'Plan inspection during upcoming maintenance window.',
+        lastScanDate: '2026-08-15 16:30:00',
+
+        historyDaily: [
+          { date: '2026-08-01', temp: 47.0 },
+          { date: '2026-08-02', temp: 47.5 },
+          { date: '2026-08-03', temp: 48.0 },
+          { date: '2026-08-04', temp: 48.6 },
+          { date: '2026-08-05', temp: 49.2 },
+          { date: '2026-08-06', temp: 49.8 },
+          { date: '2026-08-07', temp: 50.4 },
+          { date: '2026-08-08', temp: 51.0 },
+          { date: '2026-08-09', temp: 51.6 },
+          { date: '2026-08-10', temp: 52.2 },
+          { date: '2026-08-11', temp: 52.8 },
+          { date: '2026-08-12', temp: 53.3 },
+          { date: '2026-08-13', temp: 53.6 },
+          { date: '2026-08-14', temp: 53.9 },
+          { date: '2026-08-15', temp: 54.1 }
+        ],
+
+        historyHourly: [
+          { date: '00:00', temp: 51.2 },
+          { date: '02:00', temp: 51.0 },
+          { date: '04:00', temp: 50.8 },
+          { date: '06:00', temp: 52.0 },
+          { date: '08:00', temp: 53.1 },
+          { date: '10:00', temp: 53.6 },
+          { date: '12:00', temp: 53.9 },
+          { date: '14:00', temp: 54.1 },
+          { date: '16:00', temp: 54.2 }
+        ]
+      },
+      {
+        id: 'CB-01',
+        name: '500 kVAR Power Factor Capacitor Bank',
+        standard: 'IEEE 18 Shunt Power Capacitors',
+        zone: 'Outdoor Switchyard - Zone C',
+        status: 'normal',
+        mapCoords: { x: 540, y: 440 },
+        waypointIndex: 4,
+        ambientTemp: 28.0,
+        referenceTemp: 34.0,
+        currentScanTemp: 36.5,
+        ratedCurrent: 300,
+        actualCurrent: 195,
+        loadPercentage: 65,
+        hotspotTarget: 'N/A - Symmetric Dissipation',
+        hotspotPos: { x: 50, y: 50 },
+        hotspotRadius: 10,
+        diagnosis: 'NORMAL CONDITION: Thermal profile symmetric. All 3 phase capacitor cans dissipate heat within allowable limits (ΔT = +2.5°C).',
+        recommendedAction: 'Maintain monthly drone scan schedule.',
+        lastScanDate: '2026-08-15 16:30:00',
+
+        historyDaily: [
+          { date: '2026-08-01', temp: 35.8 },
+          { date: '2026-08-02', temp: 35.9 },
+          { date: '2026-08-03', temp: 36.0 },
+          { date: '2026-08-04', temp: 36.1 },
+          { date: '2026-08-05', temp: 36.1 },
+          { date: '2026-08-06', temp: 36.2 },
+          { date: '2026-08-07', temp: 36.2 },
+          { date: '2026-08-08', temp: 36.3 },
+          { date: '2026-08-09', temp: 36.3 },
+          { date: '2026-08-10', temp: 36.4 },
+          { date: '2026-08-11', temp: 36.4 },
+          { date: '2026-08-12', temp: 36.5 },
+          { date: '2026-08-13', temp: 36.5 },
+          { date: '2026-08-14', temp: 36.5 },
+          { date: '2026-08-15', temp: 36.5 }
+        ],
+
+        historyHourly: [
+          { date: '00:00', temp: 35.2 },
+          { date: '02:00', temp: 35.1 },
+          { date: '04:00', temp: 35.0 },
+          { date: '06:00', temp: 35.8 },
+          { date: '08:00', temp: 36.2 },
+          { date: '10:00', temp: 36.4 },
+          { date: '12:00', temp: 36.5 },
+          { date: '14:00', temp: 36.5 },
+          { date: '16:00', temp: 36.5 }
+        ]
+      },
+      {
+        id: 'DS-09',
+        name: '138kV Outdoor Gang-Operated Disconnect Switch',
+        standard: 'IEEE C37.30 Air Break Switch',
+        zone: 'Overhead Line Bay 4',
+        status: 'warning',
+        mapCoords: { x: 300, y: 400 },
+        waypointIndex: 5,
+        ambientTemp: 29.0,
+        referenceTemp: 36.0,
+        currentScanTemp: 48.3,
+        ratedCurrent: 1200,
+        actualCurrent: 840,
+        loadPercentage: 70,
+        hotspotTarget: 'Phase A Hinge Contact Jaw',
+        hotspotPos: { x: 72, y: 35 },
+        hotspotRadius: 16,
+        diagnosis: 'MODERATE ANOMALY: ΔT = +12.3°C at Phase A hinge jaw.',
+        recommendedAction: 'Apply conductive contact grease during next scheduled line outage.',
+        lastScanDate: '2026-08-15 16:30:00',
+
+        historyDaily: [
+          { date: '2026-08-01', temp: 42.0 },
+          { date: '2026-08-02', temp: 42.5 },
+          { date: '2026-08-03', temp: 43.0 },
+          { date: '2026-08-04', temp: 43.6 },
+          { date: '2026-08-05', temp: 44.1 },
+          { date: '2026-08-06', temp: 44.7 },
+          { date: '2026-08-07', temp: 45.2 },
+          { date: '2026-08-08', temp: 45.8 },
+          { date: '2026-08-09', temp: 46.3 },
+          { date: '2026-08-10', temp: 46.8 },
+          { date: '2026-08-11', temp: 47.3 },
+          { date: '2026-08-12', temp: 47.7 },
+          { date: '2026-08-13', temp: 48.0 },
+          { date: '2026-08-14', temp: 48.2 },
+          { date: '2026-08-15', temp: 48.3 }
+        ],
+
+        historyHourly: [
+          { date: '00:00', temp: 45.5 },
+          { date: '02:00', temp: 45.2 },
+          { date: '04:00', temp: 45.0 },
+          { date: '06:00', temp: 46.2 },
+          { date: '08:00', temp: 47.4 },
+          { date: '10:00', temp: 47.9 },
+          { date: '12:00', temp: 48.2 },
+          { date: '14:00', temp: 48.3 },
+          { date: '16:00', temp: 48.4 }
+        ]
+      },
+      {
+        id: 'MDP-01',
+        name: 'Main Power Distribution Panel MDP-01',
+        standard: 'NEMA PB-1 600A Panelboard',
+        zone: 'Control Building - West Wall',
+        status: 'normal',
+        mapCoords: { x: 140, y: 320 },
+        waypointIndex: 6,
+        ambientTemp: 24.5,
+        referenceTemp: 32.0,
+        currentScanTemp: 33.8,
+        ratedCurrent: 600,
+        actualCurrent: 330,
+        loadPercentage: 55,
+        hotspotTarget: 'N/A - Balanced Phase Thermal',
+        hotspotPos: { x: 50, y: 50 },
+        hotspotRadius: 10,
+        diagnosis: 'NORMAL CONDITION: All distribution breaker lugs operate within healthy baseline limits (ΔT = +1.8°C).',
+        recommendedAction: 'Maintain monthly drone scan schedule.',
+        lastScanDate: '2026-08-15 16:30:00',
+
+        historyDaily: [
+          { date: '2026-08-01', temp: 33.0 },
+          { date: '2026-08-02', temp: 33.1 },
+          { date: '2026-08-03', temp: 33.2 },
+          { date: '2026-08-04', temp: 33.3 },
+          { date: '2026-08-05', temp: 33.3 },
+          { date: '2026-08-06', temp: 33.4 },
+          { date: '2026-08-07', temp: 33.5 },
+          { date: '2026-08-08', temp: 33.5 },
+          { date: '2026-08-09', temp: 33.6 },
+          { date: '2026-08-10', temp: 33.6 },
+          { date: '2026-08-11', temp: 33.7 },
+          { date: '2026-08-12', temp: 33.7 },
+          { date: '2026-08-13', temp: 33.8 },
+          { date: '2026-08-14', temp: 33.8 },
+          { date: '2026-08-15', temp: 33.8 }
+        ],
+
+        historyHourly: [
+          { date: '00:00', temp: 32.8 },
+          { date: '02:00', temp: 32.7 },
+          { date: '04:00', temp: 32.5 },
+          { date: '06:00', temp: 33.2 },
+          { date: '08:00', temp: 33.5 },
+          { date: '10:00', temp: 33.7 },
+          { date: '12:00', temp: 33.8 },
+          { date: '14:00', temp: 33.8 },
+          { date: '16:00', temp: 33.8 }
+        ]
+      }
+    ];
+
+    // TOP NAVBAR COMPONENT
+    function Navbar({ droneState, battery, onStartMission }) {
+      const [clockStr, setClockStr] = useState('');
+
+      useEffect(() => {
+        const update = () => {
+          const now = new Date();
+          const pad = (n) => String(n).padStart(2, '0');
+          setClockStr(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`);
+        };
+        update();
+        const interval = setInterval(update, 1000);
+        return () => clearInterval(interval);
+      }, []);
+
+      return (
+        <header className="glass-panel mx-3 mt-3 px-6 py-3 flex items-center justify-between z-50">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v20M2 12h20M7 7l10 10M17 7L7 17"/>
+                <circle cx="12" cy="12" r="4" fill="currentColor" fillOpacity="0.2"/>
+              </svg>
+            </div>
+            <div>
+              <h1 className="font-mono text-base font-extrabold tracking-wider text-cyan-400">THERMOSENTINEL AI</h1>
+              <p className="text-[9px] tracking-widest text-slate-400 uppercase">Real-Time Autonomous Thermal Drone Inspection</p>
+            </div>
+          </div>
+
+          <div className="hidden md:flex items-center gap-6 text-xs">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-slate-400 uppercase">Facility</span>
+              <span className="font-bold text-cyan-300">SUBSTATION BAY ALPHA</span>
+            </div>
+
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-slate-400 uppercase">Drone Mission</span>
+              <span className={`font-bold px-2 py-0.5 rounded-full text-[10px] ${droneState === 'IDLE' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse'}`}>
+                {droneState}
+              </span>
+            </div>
+
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-slate-400 uppercase">Telemetry Stream</span>
+              <span className="font-mono font-bold text-emerald-400 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                LIVE 10 Hz
+              </span>
+            </div>
+
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-slate-400 uppercase">Battery</span>
+              <span className="font-mono font-bold text-emerald-400">{battery.toFixed(1)} %</span>
+            </div>
+
+            <div className="flex flex-col font-mono text-slate-300 text-xs">
+              <span>{clockStr}</span>
+            </div>
+          </div>
+
+          <button
+            onClick={onStartMission}
+            className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            LAUNCH MISSION
+          </button>
+        </header>
+      );
+    }
+
+    // SIDEBAR COMPONENT
+    function Sidebar({ currentView, onViewChange }) {
+      const menuItems = [
+        { id: 'dashboard', label: 'Dashboard Overview', icon: '⚡' },
+        { id: 'map', label: 'Facility Map & Drone', icon: '🗺️' },
+        { id: 'inspector', label: 'FLIR Thermal Inspector', icon: '🔬' },
+        { id: 'stream', label: 'Live Sensor Telemetry', icon: '📡' },
+        { id: 'analytics', label: 'AI Predictive Trends', icon: '📈' },
+        { id: 'reports', label: 'Work Orders & Reports', icon: '📋' },
+      ];
+
+      return (
+        <aside className="w-64 glass-panel p-4 flex flex-col justify-between hidden md:flex">
+          <nav className="flex flex-col gap-1.5">
+            {menuItems.map(item => {
+              const isActive = currentView === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onViewChange(item.id)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-semibold transition-all w-full text-left ${
+                    isActive
+                      ? 'bg-cyan-500/15 text-cyan-400 border-l-4 border-cyan-400 font-bold'
+                      : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                  }`}
+                >
+                  <span className="text-base">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="glass-panel-cyan p-3 text-xs">
+            <div className="flex items-center gap-2 font-bold text-cyan-400 text-[10px]">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>IEEE & NETA REAL-TIME ENGINE</span>
+            </div>
+            <p className="text-[9px] text-slate-400 mt-1">Live Radiometric Sensor Payload Stream Active.</p>
+          </div>
+        </aside>
+      );
+    }
+
+    // DASHBOARD VIEW COMPONENT
+    function DashboardView({ assets, onSelectAsset, onNavigate }) {
+      const [filter, setFilter] = useState('all');
+
+      const criticalCount = assets.filter(a => a.status === 'critical').length;
+      const warningCount = assets.filter(a => a.status === 'warning' || a.status === 'high_risk').length;
+      const normalCount = assets.filter(a => a.status === 'normal').length;
+
+      const filteredAssets = assets.filter(a => {
+        if (filter === 'critical') return a.status === 'critical';
+        if (filter === 'warning') return a.status === 'warning' || a.status === 'high_risk';
+        if (filter === 'normal') return a.status === 'normal';
+        return true;
+      });
+
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="glass-panel p-4 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-2xl text-blue-400">⚡</div>
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Monitored Electrical Assets</div>
+                <div className="text-2xl font-extrabold font-mono text-white">{assets.length}</div>
+                <div className="text-[10px] text-slate-400">Substation Yard & Switchgear</div>
+              </div>
+            </div>
+
+            <div className="glass-panel p-4 flex items-center gap-4 border-red-500/40">
+              <div className="w-12 h-12 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-2xl text-red-400 pulse-red-glow">🔥</div>
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Critical Thermal Faults</div>
+                <div className="text-2xl font-extrabold font-mono text-red-400">{criticalCount}</div>
+                <div className="text-[10px] text-red-400 font-semibold">Immediate Shutdown Required</div>
+              </div>
+            </div>
+
+            <div className="glass-panel p-4 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-2xl text-amber-400">⚠️</div>
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase">High Risk & Warnings</div>
+                <div className="text-2xl font-extrabold font-mono text-amber-400">{warningCount}</div>
+                <div className="text-[10px] text-slate-400">Scheduled Outage Maintenance</div>
+              </div>
+            </div>
+
+            <div className="glass-panel p-4 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-2xl text-emerald-400">🛡️</div>
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase">System Health Index</div>
+                <div className="text-2xl font-extrabold font-mono text-emerald-400">74.2 %</div>
+                <div className="text-[10px] text-slate-400">NETA MTS-2023 Score</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold tracking-wider text-slate-200 uppercase">Electrical Equipment Real-Time Status</h3>
+            <div className="flex gap-2">
+              {['all', 'critical', 'warning', 'normal'].map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
+                    filter === f
+                      ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
+                      : 'bg-slate-800/40 text-slate-400 border border-slate-700/50 hover:bg-slate-800'
+                  }`}
+                >
+                  {f} ({f === 'all' ? assets.length : f === 'critical' ? criticalCount : f === 'warning' ? warningCount : normalCount})
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredAssets.map(asset => {
+              const deltaT = (asset.currentScanTemp - asset.referenceTemp).toFixed(1);
+              const badgeClass =
+                asset.status === 'critical' ? 'bg-red-500/25 text-red-400 border-red-500' :
+                asset.status === 'high_risk' ? 'bg-orange-500/20 text-orange-400 border-orange-500' :
+                asset.status === 'warning' ? 'bg-amber-500/20 text-amber-400 border-amber-500' :
+                'bg-emerald-500/20 text-emerald-400 border-emerald-500';
+
+              const tempColor =
+                asset.status === 'critical' ? 'text-red-400' :
+                asset.status === 'high_risk' ? 'text-orange-400' :
+                asset.status === 'warning' ? 'text-amber-400' :
+                'text-emerald-400';
+
+              return (
+                <div
+                  key={asset.id}
+                  onClick={() => {
+                    onSelectAsset(asset);
+                    onNavigate('inspector');
+                  }}
+                  className="glass-panel p-4 hover:border-cyan-500/60 transition-all cursor-pointer space-y-3 hover:-translate-y-0.5"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-mono font-extrabold text-cyan-400 text-sm">{asset.id}</div>
+                      <div className="text-xs text-slate-300 font-medium">{asset.name}</div>
+                      <div className="text-[10px] text-slate-400">{asset.standard}</div>
+                    </div>
+                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border ${badgeClass}`}>
+                      {asset.status.toUpperCase()}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-950/60 p-3 rounded-lg flex justify-between items-center text-xs">
+                    <div>
+                      <div className="text-[9px] text-slate-400">Live Temp</div>
+                      <div className={`text-base font-mono font-bold ${tempColor}`}>{asset.currentScanTemp.toFixed(1)} °C</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-slate-400">Baseline</div>
+                      <div className="text-base font-mono font-bold text-slate-200">{asset.referenceTemp} °C</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-slate-400">ΔT Anomaly</div>
+                      <div className={`text-base font-mono font-bold ${tempColor}`}>+{deltaT} °C</div>
+                    </div>
+                  </div>
+
+                  <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                    <span>📍 {asset.zone}</span>
+                    <span className="text-cyan-400 font-semibold">Inspect Live FLIR →</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // TELEMETRY STREAM VIEW
+    function TelemetryStreamView({ packets }) {
+      return (
+        <div className="glass-panel p-4 space-y-4 h-full flex flex-col">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-sm font-bold tracking-wider text-slate-200 uppercase">Live FLIR Radiometric Sensor Payload Stream</h3>
+              <p className="text-xs text-slate-400">Real-time 10 Hz Telemetry Packets from Autonomous Flight Payload</p>
+            </div>
+            <div className="flex items-center gap-4 text-xs">
+              <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-3 py-1 rounded-full font-mono font-bold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                STREAM ACTIVE (10 Hz)
+              </span>
+            </div>
+          </div>
+
+          <div className="flex-1 bg-slate-950 rounded-lg border border-slate-800 p-4 font-mono text-xs overflow-y-auto space-y-2">
+            <div className="grid grid-cols-7 text-[10px] text-cyan-400 font-bold border-b border-slate-800 pb-2 uppercase">
+              <span>Timestamp</span>
+              <span>Target ID</span>
+              <span>Sensor ID</span>
+              <span>Scan Temp</span>
+              <span>Load Current</span>
+              <span>ΔT Anomaly</span>
+              <span>Checksum</span>
+            </div>
+            {packets.slice(0, 25).map((pkt, idx) => (
+              <div key={idx} className="grid grid-cols-7 text-[11px] text-slate-300 hover:bg-slate-900/60 py-1 border-b border-slate-900">
+                <span className="text-slate-400">{pkt.timestamp}</span>
+                <span className="font-bold text-cyan-300">{pkt.assetId}</span>
+                <span>FLIR-L35-{pkt.sensorId}</span>
+                <span className={pkt.deltaT > 30 ? 'text-red-400 font-bold' : pkt.deltaT > 10 ? 'text-amber-400' : 'text-emerald-400'}>
+                  {pkt.temp.toFixed(1)} °C
+                </span>
+                <span>{pkt.current} A</span>
+                <span className={pkt.deltaT > 30 ? 'text-red-400 font-bold' : pkt.deltaT > 10 ? 'text-amber-400' : 'text-emerald-400'}>
+                  +{pkt.deltaT.toFixed(1)} °C
+                </span>
+                <span className="text-slate-500 text-[10px]">{pkt.checksum}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // FULLY ANIMATED & INTERACTIVE FACILITY MAP & CONTINUOUS PATROL DRONE FLIGHT SIMULATOR VIEW
+    function FacilityMapView({ assets, selectedAsset, onSelectAsset, onNavigate, onSetDroneState }) {
+      const canvasRef = useRef(null);
+      const [flightState, setFlightState] = useState('NAVIGATING');
+      const [isContinuousMode, setIsContinuousMode] = useState(true);
+      const [lapCount, setLapCount] = useState(1);
+      const [dronePos, setDronePos] = useState({ x: 120, y: 100, angle: 0 });
+      const [targetIndex, setTargetIndex] = useState(0);
+      const [altitude, setAltitude] = useState(15.2);
+      const [speed, setSpeed] = useState(3.8);
+      const [speedMult, setSpeedMult] = useState(1);
+      const [gimbalPitch, setGimbalPitch] = useState(-30);
+      const [scanProgress, setScanProgress] = useState(0);
+
+      const helipad = { x: 100, y: 80 };
+      const sortedAssets = useMemo(() => [...assets].sort((a, b) => a.waypointIndex - b.waypointIndex), [assets]);
+
+      useEffect(() => {
+        if (onSetDroneState) {
+          if (flightState === 'SCANNING' || flightState === 'NAVIGATING') {
+            onSetDroneState(`SCANNING (LAP ${lapCount})`);
+          } else {
+            onSetDroneState(flightState);
+          }
+        }
+      }, [flightState, lapCount, onSetDroneState]);
+
+      useEffect(() => {
+        if (!canvasRef.current) return;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.parentElement.clientWidth || 800;
+        canvas.height = 460;
+
+        const w = canvas.width;
+        const h = canvas.height;
+        const sx = w / 800;
+        const sy = h / 460;
+
+        let animationId;
+        let lastTime = Date.now();
+        let rotorAngle = 0;
+
+        const loop = () => {
+          const now = Date.now();
+          const dt = Math.min((now - lastTime) / 1000, 0.1) * speedMult;
+          lastTime = now;
+
+          if (flightState !== 'PAUSED' && flightState !== 'IDLE') {
+            rotorAngle += 0.4 * speedMult;
+          }
+
+          if (flightState === 'NAVIGATING') {
+            const targetAsset = sortedAssets[targetIndex];
+            if (targetAsset) {
+              const tx = targetAsset.mapCoords.x;
+              const ty = targetAsset.mapCoords.y;
+
+              const dx = tx - dronePos.x;
+              const dy = ty - dronePos.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+
+              const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+              const moveStep = 80 * dt;
+
+              if (dist <= moveStep) {
+                setDronePos({ x: tx, y: ty, angle });
+                setFlightState('SCANNING');
+                setScanProgress(0);
+                setGimbalPitch(-45);
+                onSelectAsset(targetAsset);
+              } else {
+                setDronePos(prev => ({
+                  x: prev.x + (dx / dist) * moveStep,
+                  y: prev.y + (dy / dist) * moveStep,
+                  angle
+                }));
+                setSpeed(4.2 * speedMult);
+                setAltitude(15.2);
+                setGimbalPitch(-15);
+              }
+            }
+          } else if (flightState === 'SCANNING') {
+            setSpeed(0);
+            setScanProgress(p => {
+              const np = p + dt * 0.5;
+              if (np >= 1.0) {
+                const isLastAsset = targetIndex === sortedAssets.length - 1;
+
+                if (isLastAsset) {
+                  if (isContinuousMode) {
+                    setTargetIndex(0);
+                    setLapCount(l => l + 1);
+                    setFlightState('NAVIGATING');
+                  } else {
+                    setFlightState('RTH');
+                  }
+                } else {
+                  setTargetIndex(targetIndex + 1);
+                  setFlightState('NAVIGATING');
+                }
+                return 0;
+              }
+              return np;
+            });
+          } else if (flightState === 'RTH') {
+            const dx = helipad.x - dronePos.x;
+            const dy = helipad.y - dronePos.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            const moveStep = 100 * dt;
+
+            if (dist <= moveStep) {
+              setDronePos({ x: helipad.x, y: helipad.y, angle: 0 });
+              setFlightState('IDLE');
+              setSpeed(0);
+              setAltitude(0);
+            } else {
+              setDronePos(prev => ({
+                x: prev.x + (dx / dist) * moveStep,
+                y: prev.y + (dy / dist) * moveStep,
+                angle
+              }));
+              setSpeed(5.0 * speedMult);
+            }
+          }
+
+          ctx.fillStyle = '#060911';
+          ctx.fillRect(0, 0, w, h);
+
+          ctx.strokeStyle = 'rgba(0, 242, 254, 0.05)';
+          ctx.lineWidth = 1;
+          for (let x = 0; x < w; x += 40 * sx) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+          }
+          for (let y = 0; y < h; y += 40 * sy) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+          }
+
+          ctx.fillStyle = 'rgba(0, 242, 254, 0.03)';
+          ctx.strokeStyle = 'rgba(0, 242, 254, 0.2)';
+          ctx.fillRect(40 * sx, 40 * sy, 350 * sx, 200 * sy);
+          ctx.strokeRect(40 * sx, 40 * sy, 350 * sx, 200 * sy);
+          ctx.fillStyle = 'rgba(0, 242, 254, 0.4)';
+          ctx.font = 'bold 9px "JetBrains Mono", monospace';
+          ctx.fillText('ZONE A: TRANSFORMER YARD', 50 * sx, 56 * sy);
+
+          ctx.fillStyle = 'rgba(255, 171, 0, 0.03)';
+          ctx.strokeStyle = 'rgba(255, 171, 0, 0.2)';
+          ctx.fillRect(420 * sx, 40 * sy, 340 * sx, 160 * sy);
+          ctx.strokeRect(420 * sx, 40 * sy, 340 * sx, 160 * sy);
+
+          ctx.fillStyle = 'rgba(0, 230, 118, 0.03)';
+          ctx.strokeStyle = 'rgba(0, 230, 118, 0.2)';
+          ctx.fillRect(600 * sx, 220 * sy, 160 * sx, 210 * sy);
+          ctx.strokeRect(600 * sx, 220 * sy, 160 * sx, 210 * sy);
+
+          ctx.strokeStyle = 'rgba(0, 242, 254, 0.4)';
+          ctx.lineWidth = 2 * sx;
+          ctx.setLineDash([6 * sx, 6 * sx]);
+          ctx.beginPath();
+          ctx.moveTo(helipad.x * sx, helipad.y * sy);
+          sortedAssets.forEach(asset => {
+            ctx.lineTo(asset.mapCoords.x * sx, asset.mapCoords.y * sy);
+          });
+          if (isContinuousMode && sortedAssets.length > 0) {
+            ctx.lineTo(sortedAssets[0].mapCoords.x * sx, sortedAssets[0].mapCoords.y * sy);
+          } else {
+            ctx.lineTo(helipad.x * sx, helipad.y * sy);
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = 'rgba(0, 242, 254, 0.12)';
+          ctx.strokeStyle = '#00f2fe';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(helipad.x * sx, helipad.y * sy, 20 * sx, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#00f2fe';
+          ctx.font = 'bold 12px "JetBrains Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('H', helipad.x * sx, helipad.y * sy + 4 * sy);
+
+          sortedAssets.forEach((asset, idx) => {
+            const ax = asset.mapCoords.x * sx;
+            const ay = asset.mapCoords.y * sy;
+            const isTarget = idx === targetIndex && (flightState === 'NAVIGATING' || flightState === 'SCANNING');
+            const isSelected = selectedAsset && asset.id === selectedAsset.id;
+
+            const color = asset.status === 'critical' ? '#ff5252' : asset.status === 'warning' || asset.status === 'high_risk' ? '#ffab00' : '#00e676';
+
+            if (isTarget || isSelected) {
+              const pulse = (Math.sin(now / 200) + 1) / 2;
+              ctx.fillStyle = color;
+              ctx.globalAlpha = 0.2 + pulse * 0.3;
+              ctx.beginPath();
+              ctx.arc(ax, ay, (22 + pulse * 10) * sx, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.globalAlpha = 1.0;
+            }
+
+            ctx.fillStyle = color;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = (isTarget || isSelected) ? 16 : 6;
+            ctx.beginPath();
+            ctx.arc(ax, ay, 13 * sx, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`WP${asset.waypointIndex}`, ax, ay + 3.5 * sy);
+
+            ctx.fillStyle = isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.85)';
+            ctx.font = 'bold 11px "JetBrains Mono", monospace';
+            ctx.fillText(asset.id, ax, ay - 16 * sy);
+
+            ctx.fillStyle = color;
+            ctx.font = 'bold 10px monospace';
+            ctx.fillText(`${asset.currentScanTemp.toFixed(1)}°C`, ax, ay + 24 * sy);
+          });
+
+          const dx = dronePos.x * sx;
+          const dy = dronePos.y * sy;
+
+          ctx.save();
+          ctx.translate(dx, dy);
+          ctx.rotate((dronePos.angle || 0) * Math.PI / 180);
+
+          const fovGrad = ctx.createRadialGradient(0, 0, 4 * sx, 0, 0, 65 * sx);
+          fovGrad.addColorStop(0, 'rgba(0, 242, 254, 0.4)');
+          fovGrad.addColorStop(1, 'rgba(0, 242, 254, 0)');
+          ctx.fillStyle = fovGrad;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.arc(0, 0, 65 * sx, -Math.PI / 4, Math.PI / 4);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.strokeStyle = '#00f2fe';
+          ctx.lineWidth = 2.5 * sx;
+          ctx.beginPath();
+          ctx.moveTo(-12 * sx, -12 * sy); ctx.lineTo(12 * sx, 12 * sy);
+          ctx.moveTo(-12 * sx, 12 * sy); ctx.lineTo(12 * sx, -12 * sy);
+          ctx.stroke();
+
+          [[-12, -12], [12, -12], [-12, 12], [12, 12]].forEach(([rx, ry]) => {
+            ctx.save();
+            ctx.translate(rx * sx, ry * sy);
+            ctx.rotate(rotorAngle);
+            ctx.strokeStyle = 'rgba(0, 242, 254, 0.8)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(0, 0, 7 * sx, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          });
+
+          ctx.fillStyle = '#00f2fe';
+          ctx.beginPath();
+          ctx.arc(0, 0, 6 * sx, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ff5252';
+          ctx.beginPath();
+          ctx.arc(7 * sx, 0, 3 * sx, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.restore();
+
+          animationId = requestAnimationFrame(loop);
+        };
+
+        loop();
+        return () => cancelAnimationFrame(animationId);
+      }, [dronePos, flightState, targetIndex, sortedAssets, speedMult, selectedAsset, isContinuousMode]);
+
+      const handleCanvasClick = (e) => {
+        if (!canvasRef.current) return;
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+        const sx = canvas.width / 800;
+        const sy = canvas.height / 460;
+
+        sortedAssets.forEach((asset, idx) => {
+          const ax = asset.mapCoords.x * sx;
+          const ay = asset.mapCoords.y * sy;
+          const dist = Math.sqrt(Math.pow(mouseX - ax, 2) + Math.pow(mouseY - ay, 2));
+
+          if (dist < 26) {
+            onSelectAsset(asset);
+            setTargetIndex(idx);
+            setFlightState('NAVIGATING');
+          }
+        });
+      };
+
+      const currentTargetAsset = sortedAssets[targetIndex] || sortedAssets[0];
+
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+          <div className="lg:col-span-2 glass-panel p-4 flex flex-col h-[520px]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+                <h3 className="text-xs font-bold tracking-wider text-slate-200 uppercase">SUBSTATION BAY ALPHA LIVE FLIGHT MAP</h3>
+              </div>
+              <div className="flex items-center gap-3 text-[10px]">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400"></span> Normal</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400"></span> Warning</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-400"></span> High Risk</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400"></span> Critical</span>
+              </div>
+            </div>
+
+            <div className="flex-1 relative rounded-lg overflow-hidden border border-slate-700/50 bg-slate-950">
+              <canvas
+                ref={canvasRef}
+                onClick={handleCanvasClick}
+                className="w-full h-full block cursor-pointer"
+                title="Click any asset marker to direct drone"
+              ></canvas>
+            </div>
+          </div>
+
+          <div className="glass-panel p-4 flex flex-col justify-between space-y-4">
+            <div className="space-y-4">
+              <h3 className="text-xs font-bold tracking-wider text-slate-200 uppercase">Flight Controls & Live Telemetry</h3>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    if (flightState === 'IDLE') {
+                      setTargetIndex(0);
+                      setAltitude(15.2);
+                    }
+                    setFlightState('NAVIGATING');
+                  }}
+                  className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-extrabold text-xs py-2.5 rounded-lg shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center gap-1.5"
+                >
+                  ▶ START INSPECT
+                </button>
+                <button
+                  onClick={() => setFlightState('PAUSED')}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3 py-2.5 rounded-lg border border-slate-700"
+                >
+                  ⏸ PAUSE
+                </button>
+                <button
+                  onClick={() => setFlightState('RTH')}
+                  className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/40 font-bold text-xs px-3 py-2.5 rounded-lg"
+                >
+                  🏠 RTH
+                </button>
+              </div>
+
+              <div className="bg-cyan-500/10 border border-cyan-500/30 p-3 rounded-lg flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-extrabold text-cyan-400 flex items-center gap-1.5">
+                    <span>🔄 CONTINUOUS PATROL MODE</span>
+                    <span className="text-[9px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded">LAP {lapCount}</span>
+                  </div>
+                  <div className="text-[9px] text-slate-400">
+                    {isContinuousMode ? 'Drone inspects endlessly in continuous loop' : '1-Shot Patrol: Returns Home after WP6'}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsContinuousMode(!isContinuousMode)}
+                  className={`w-12 h-6 rounded-full p-1 transition-all ${isContinuousMode ? 'bg-cyan-400' : 'bg-slate-800'}`}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-slate-950 transition-all transform ${isContinuousMode ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between bg-slate-950/60 p-2.5 rounded-lg text-xs">
+                <span className="text-slate-400 font-bold">Flight Sim Speed:</span>
+                <div className="flex gap-1">
+                  {[1, 2, 5].map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setSpeedMult(m)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${speedMult === m ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-400'}`}
+                    >
+                      {m}x
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-slate-950/60 p-2.5 rounded-lg">
+                  <span className="text-[9px] text-slate-400 uppercase font-bold block">Flight State</span>
+                  <span className={`font-bold ${flightState === 'SCANNING' ? 'text-emerald-400 animate-pulse' : flightState === 'NAVIGATING' ? 'text-cyan-400' : 'text-slate-300'}`}>
+                    {flightState}
+                  </span>
+                </div>
+                <div className="bg-slate-950/60 p-2.5 rounded-lg">
+                  <span className="text-[9px] text-slate-400 uppercase font-bold block">Altitude</span>
+                  <span className="font-mono font-bold text-slate-200">{altitude} m</span>
+                </div>
+                <div className="bg-slate-950/60 p-2.5 rounded-lg">
+                  <span className="text-[9px] text-slate-400 uppercase font-bold block">Ground Speed</span>
+                  <span className="font-mono font-bold text-slate-200">{speed.toFixed(1)} m/s</span>
+                </div>
+                <div className="bg-slate-950/60 p-2.5 rounded-lg">
+                  <span className="text-[9px] text-slate-400 uppercase font-bold block">Active Waypoint</span>
+                  <span className="font-bold text-amber-400">WP{currentTargetAsset.waypointIndex} ({currentTargetAsset.id})</span>
+                </div>
+                <div className="bg-slate-950/60 p-2.5 rounded-lg">
+                  <span className="text-[9px] text-slate-400 uppercase font-bold block">Gimbal Pitch</span>
+                  <span className="font-mono font-bold text-slate-200">{gimbalPitch.toFixed(1)}°</span>
+                </div>
+                <div className="bg-slate-950/60 p-2.5 rounded-lg">
+                  <span className="text-[9px] text-slate-400 uppercase font-bold block">Inspection Mode</span>
+                  <span className="font-bold text-cyan-400 text-[10px]">
+                    {isContinuousMode ? `LOOP (LAP ${lapCount})` : '1-SHOT CIRCUIT'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {selectedAsset && (
+              <div className="glass-panel-cyan p-3 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="font-mono font-extrabold text-cyan-400 text-xs">{selectedAsset.id}</span>
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${selectedAsset.status === 'critical' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                    {selectedAsset.status.toUpperCase()}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-200 font-semibold">{selectedAsset.name}</p>
+                <div className="flex justify-between items-center text-[10px] text-slate-300">
+                  <span>Live Scan: <strong className="text-white">{selectedAsset.currentScanTemp.toFixed(1)} °C</strong></span>
+                  <span>ΔT: <strong className="text-cyan-400">+{(selectedAsset.currentScanTemp - selectedAsset.referenceTemp).toFixed(1)} °C</strong></span>
+                </div>
+                <button
+                  onClick={() => onNavigate('inspector')}
+                  className="w-full mt-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/40 text-[10px] font-bold py-1.5 rounded transition-all"
+                >
+                  🔬 OPEN FLIR THERMAL INSPECTOR
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // FULLY INTERACTIVE DUAL SLIDER FLIR THERMAL INSPECTOR VIEW
+    function ThermalInspectorView({ asset }) {
+      const [palette, setPalette] = useState('rainbow');
+      const [splitRatio, setSplitRatio] = useState(50);
+      const [isDragging, setIsDragging] = useState(false);
+      const [spotTemp, setSpotTemp] = useState(null);
+      const [probePos, setProbePos] = useState({ x: 0, y: 0 });
+
+      const viewportRef = useRef(null);
+      const rgbCanvasRef = useRef(null);
+      const thermalCanvasRef = useRef(null);
+
+      useEffect(() => {
+        if (!asset || !thermalCanvasRef.current || !rgbCanvasRef.current) return;
+
+        let animationFrameId;
+        let tick = 0;
+
+        const rgbCtx = rgbCanvasRef.current.getContext('2d');
+        rgbCtx.fillStyle = '#1e293b';
+        rgbCtx.fillRect(0, 0, 640, 380);
+        rgbCtx.fillStyle = '#0f172a';
+        rgbCtx.fillRect(60, 40, 520, 300);
+        rgbCtx.fillStyle = '#94a3b8';
+        rgbCtx.font = 'bold 14px "JetBrains Mono", monospace';
+        rgbCtx.textAlign = 'center';
+        rgbCtx.fillText('PHASE A', 160, 80);
+        rgbCtx.fillText('PHASE B', 320, 80);
+        rgbCtx.fillText('PHASE C', 455, 80);
+
+        [160, 320, 455].forEach(cx => {
+          rgbCtx.fillStyle = '#475569';
+          rgbCtx.fillRect(cx - 20, 100, 40, 160);
+          rgbCtx.fillStyle = '#b45309';
+          rgbCtx.beginPath();
+          rgbCtx.arc(cx, 180, 14, 0, Math.PI * 2);
+          rgbCtx.fill();
+        });
+
+        const thermalCtx = thermalCanvasRef.current.getContext('2d');
+
+        const renderFrame = () => {
+          tick += 0.05;
+          const imgData = thermalCtx.createImageData(640, 380);
+          const data = imgData.data;
+
+          const hsX = (asset.hotspotPos.x / 100) * 640;
+          const hsY = (asset.hotspotPos.y / 100) * 380;
+          const noise = Math.sin(tick) * 1.5;
+
+          for (let y = 0; y < 380; y++) {
+            for (let x = 0; x < 640; x++) {
+              let temp = asset.ambientTemp + 5 + Math.sin(x / 30 + tick) * 0.5;
+              const dist = Math.sqrt(Math.pow(x - hsX, 2) + Math.pow(y - hsY, 2));
+              if (dist < 130 && asset.status !== 'normal') {
+                temp += (asset.currentScanTemp + noise - temp) * Math.pow(1 - dist / 130, 2);
+              }
+
+              const t = Math.max(0, Math.min(1, (temp - 20) / 90));
+              const idx = (y * 640 + x) * 4;
+
+              if (palette === 'whitehot') {
+                const v = Math.round(t * 255);
+                data[idx] = v; data[idx + 1] = v; data[idx + 2] = v;
+              } else if (palette === 'blackhot') {
+                const v = Math.round((1 - t) * 255);
+                data[idx] = v; data[idx + 1] = v; data[idx + 2] = v;
+              } else if (palette === 'rainbow') {
+                let r = 0, g = 0, b = 0;
+                if (t < 0.2) { b = Math.round(t / 0.2 * 255); }
+                else if (t < 0.4) { b = 255; g = Math.round((t - 0.2) / 0.2 * 255); }
+                else if (t < 0.6) { g = 255; b = Math.round((0.6 - t) / 0.2 * 255); }
+                else if (t < 0.8) { g = 255; r = Math.round((t - 0.6) / 0.2 * 255); }
+                else if (t < 0.95) { r = 255; g = Math.round((0.95 - t) / 0.15 * 255); }
+                else { r = 255; g = 255; b = Math.round((t - 0.95) / 0.05 * 255); }
+                data[idx] = r; data[idx + 1] = g; data[idx + 2] = b;
+              } else {
+                let r = 0, g = 0, b = 0;
+                if (t < 0.25) { r = Math.round(t / 0.25 * 80); b = Math.round(t / 0.25 * 160); }
+                else if (t < 0.5) { const p = (t - 0.25) / 0.25; r = Math.round(80 + p * 120); g = Math.round(p * 40); b = Math.round(160 - p * 120); }
+                else if (t < 0.75) { const p = (t - 0.5) / 0.25; r = Math.round(200 + p * 55); g = Math.round(40 + p * 160); b = 20; }
+                else { const p = (t - 0.75) / 0.25; r = 255; g = Math.round(200 + p * 55); b = Math.round(20 + p * 235); }
+                data[idx] = r; data[idx + 1] = g; data[idx + 2] = b;
+              }
+              data[idx + 3] = 255;
+            }
+          }
+          thermalCtx.putImageData(imgData, 0, 0);
+          animationFrameId = requestAnimationFrame(renderFrame);
+        };
+
+        renderFrame();
+        return () => cancelAnimationFrame(animationFrameId);
+      }, [asset, palette]);
+
+      const updateRatioFromX = (clientX) => {
+        if (!viewportRef.current) return;
+        const rect = viewportRef.current.getBoundingClientRect();
+        let ratio = ((clientX - rect.left) / rect.width) * 100;
+        ratio = Math.max(0, Math.min(100, ratio));
+        setSplitRatio(ratio);
+      };
+
+      const handleMouseDown = (e) => {
+        setIsDragging(true);
+        updateRatioFromX(e.clientX);
+      };
+
+      const handleMouseMove = (e) => {
+        if (isDragging) {
+          updateRatioFromX(e.clientX);
+        }
+
+        if (viewportRef.current && asset) {
+          const rect = viewportRef.current.getBoundingClientRect();
+          const rx = (e.clientX - rect.left) / rect.width;
+          const ry = (e.clientY - rect.top) / rect.height;
+          setProbePos({ x: rx * 100, y: ry * 100 });
+
+          const hsX = asset.hotspotPos.x / 100;
+          const hsY = asset.hotspotPos.y / 100;
+          const dist = Math.sqrt(Math.pow(rx - hsX, 2) + Math.pow(ry - hsY, 2));
+
+          let temp = asset.ambientTemp + 5;
+          if (dist < 0.35) {
+            temp += (asset.currentScanTemp - (asset.ambientTemp + 5)) * Math.pow(1 - dist / 0.35, 2);
+          }
+          setSpotTemp(temp.toFixed(1));
+        }
+      };
+
+      if (!asset) return null;
+
+      return (
+        <div className="glass-panel p-4 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-cyan-400 animate-ping"></span>
+              <h3 className="font-mono text-sm font-bold text-cyan-400">{asset.id} - {asset.name.toUpperCase()}</h3>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500">{asset.status.toUpperCase()}</span>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs">
+              <label className="text-slate-400 font-bold">FLIR PALETTE:</label>
+              <select value={palette} onChange={(e) => setPalette(e.target.value)} className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded px-2.5 py-1.5 font-bold">
+                <option value="ironbow">FLIR Ironbow</option>
+                <option value="rainbow">Thermal Rainbow</option>
+                <option value="whitehot">White-Hot</option>
+                <option value="blackhot">Black-Hot</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center gap-3">
+            <div
+              ref={viewportRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={() => setIsDragging(false)}
+              onMouseLeave={() => { setIsDragging(false); setSpotTemp(null); }}
+              onTouchStart={(e) => { setIsDragging(true); updateRatioFromX(e.touches[0].clientX); }}
+              onTouchMove={(e) => { if (isDragging) updateRatioFromX(e.touches[0].clientX); }}
+              onTouchEnd={() => setIsDragging(false)}
+              className="relative w-[640px] h-[380px] rounded-lg overflow-hidden border-2 border-slate-700 cursor-ew-resize select-none shadow-2xl"
+            >
+              <canvas ref={rgbCanvasRef} width="640" height="380" className="absolute top-0 left-0"></canvas>
+              <canvas
+                ref={thermalCanvasRef}
+                width="640"
+                height="380"
+                className="absolute top-0 left-0"
+                style={{ clipPath: `inset(0 0 0 ${splitRatio}%)` }}
+              ></canvas>
+
+              <div className="split-handle" style={{ left: `${splitRatio}%` }}>
+                <div className="split-knob">↔</div>
+              </div>
+
+              {asset.status !== 'normal' && (
+                <div className="hotspot-box" style={{ left: `${asset.hotspotPos.x}%`, top: `${asset.hotspotPos.y}%` }}>
+                  <div className="hotspot-ping"></div>
+                  <div className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-red-600 text-white px-2 py-0.5 rounded text-[9px] font-bold shadow-lg">
+                    LIVE HOTSPOT: {asset.currentScanTemp.toFixed(1)} °C
+                  </div>
+                </div>
+              )}
+
+              {spotTemp && (
+                <div className="spot-probe" style={{ display: 'block', left: `${probePos.x}%`, top: `${probePos.y}%` }}>
+                  <div className="probe-val">{spotTemp} °C</div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 w-[640px] text-xs font-bold">
+              <span className="text-slate-400">20.0 °C</span>
+              <div className={`flex-1 h-3 rounded scale-gradient ${palette}`}></div>
+              <span className="text-slate-400">{(asset.currentScanTemp + 10).toFixed(1)} °C</span>
+            </div>
+          </div>
+
+          <div className="bg-slate-950/80 p-4 rounded-xl text-xs space-y-3 w-[640px] mx-auto border border-slate-800">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-300 font-bold flex items-center gap-2">
+                <span>🎚️ RGB Optical / FLIR Thermal Overlay Split:</span>
+                <span className="text-cyan-400 font-extrabold font-mono text-sm">{Math.round(splitRatio)}%</span>
+              </span>
+              <div className="flex gap-2">
+                <button onClick={() => setSplitRatio(0)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded text-[10px] font-bold">0% (RGB Only)</button>
+                <button onClick={() => setSplitRatio(50)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded text-[10px] font-bold">50% Split</button>
+                <button onClick={() => setSplitRatio(100)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded text-[10px] font-bold">100% (Thermal Only)</button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] text-slate-400 font-mono font-bold">RGB Optical</span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={splitRatio}
+                onChange={(e) => setSplitRatio(parseFloat(e.target.value))}
+                className="w-full accent-cyan-400 h-2 bg-slate-800 rounded-lg cursor-pointer"
+              />
+              <span className="text-[10px] text-cyan-400 font-mono font-bold">FLIR Thermal</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // AI TRENDS VIEW COMPONENT WITH DAILY & HOURLY TIMEFRAME CONTROLS
+    function AITrendsView({ asset }) {
+      const [timeframe, setTimeframe] = useState('daily'); // 'daily' (default), 'hourly'
+      const chartRef = useRef(null);
+
+      const activeData = useMemo(() => {
+        if (!asset) return { labels: [], temps: [] };
+        const historyList = timeframe === 'hourly' ? asset.historyHourly : asset.historyDaily;
+        return {
+          labels: historyList.map(h => h.date),
+          temps: historyList.map(h => h.temp)
+        };
+      }, [asset, timeframe]);
+
+      useEffect(() => {
+        if (!asset || !chartRef.current) return;
+        const canvas = chartRef.current;
+        const ctx = canvas.getContext('2d');
+        const chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: activeData.labels,
+            datasets: [{
+              label: `Real Scan Temp (°C) - ${timeframe === 'hourly' ? 'Today (24H)' : 'Daily (Aug 01 - Aug 15)'}`,
+              data: activeData.temps,
+              borderColor: '#00f2fe',
+              backgroundColor: 'rgba(0, 242, 254, 0.12)',
+              borderWidth: 3,
+              pointBackgroundColor: '#00f2fe',
+              pointRadius: 4,
+              pointHoverRadius: 7,
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                titleFont: { size: 12, weight: 'bold' },
+                bodyFont: { size: 12 },
+                borderColor: '#00f2fe',
+                borderWidth: 1,
+                padding: 10
+              }
+            },
+            scales: {
+              y: {
+                grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono' } }
+              },
+              x: {
+                grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } }
+              }
+            }
+          }
+        });
+        return () => chart.destroy();
+      }, [asset, activeData, timeframe]);
+
+      if (!asset) return null;
+
+      const deltaT = (asset.currentScanTemp - asset.referenceTemp).toFixed(1);
+
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+          <div className="lg:col-span-2 glass-panel p-4 flex flex-col h-[490px]">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xs font-bold tracking-wider text-slate-200 uppercase">HISTORICAL THERMAL DEGRADATION TREND</h3>
+                <p className="text-[10px] text-slate-400">Daily Thermal Inspection Scan Readings & IEEE Standards</p>
+              </div>
+
+              {/* TIMEFRAME GRANULARITY FILTER BUTTONS */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setTimeframe('daily')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    timeframe === 'daily'
+                      ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 shadow-md shadow-cyan-500/10'
+                      : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                  }`}
+                >
+                  📅 14-DAY DAILY (DEFAULT)
+                </button>
+                <button
+                  onClick={() => setTimeframe('hourly')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    timeframe === 'hourly'
+                      ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 shadow-md shadow-cyan-500/10'
+                      : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                  }`}
+                >
+                  🕒 24-HR HOURLY TODAY
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 relative rounded-lg overflow-hidden border border-slate-700/50 bg-slate-950 p-2">
+              <canvas ref={chartRef} className="w-full h-full block"></canvas>
+            </div>
+          </div>
+
+          <div className="glass-panel p-4 flex flex-col justify-between space-y-4">
+            <div>
+              <h3 className="text-xs font-bold tracking-wider text-slate-200 uppercase mb-4">AI Risk Matrix & Diagnostics</h3>
+              <div className="bg-red-500/10 border border-red-500/40 p-4 rounded-xl text-center mb-4">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">NETA Anomaly Risk Index</span>
+                <span className="font-mono text-3xl font-extrabold text-red-400">94 / 100</span>
+              </div>
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between py-1.5 border-b border-slate-800">
+                  <span className="text-slate-400 font-medium">Target Asset:</span>
+                  <span className="font-mono font-bold text-cyan-400">{asset.id}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-800">
+                  <span className="text-slate-400 font-medium">Today's Daily Scan:</span>
+                  <span className="font-bold text-white">{asset.currentScanTemp.toFixed(1)} °C</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-800">
+                  <span className="text-slate-400 font-medium">Delta T (ΔT Anomaly):</span>
+                  <span className="font-bold text-red-400">+{deltaT} °C</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-800">
+                  <span className="text-slate-400 font-medium">24-Hr Thermal Rise Rate:</span>
+                  <span className="font-bold text-amber-400">+1.2 °C / day</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-800">
+                  <span className="text-slate-400 font-medium">Operating Load:</span>
+                  <span className="font-bold text-amber-400">{asset.loadPercentage}% ({asset.actualCurrent}A)</span>
+                </div>
+              </div>
+            </div>
+            <div className="glass-panel-cyan p-3 space-y-1">
+              <h4 className="text-[10px] font-bold text-cyan-400 uppercase">AI Diagnosis</h4>
+              <p className="text-xs text-slate-300 leading-relaxed">{asset.diagnosis}</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // WORK ORDERS VIEW COMPONENT
+    function WorkOrdersView({ assets, selectedAsset, onSelectAsset }) {
+      const handlePrint = () => window.print();
+
+      const deltaT = selectedAsset ? (selectedAsset.currentScanTemp - selectedAsset.referenceTemp).toFixed(1) : 0;
+
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
+          <div className="glass-panel p-4 flex flex-col space-y-3">
+            <h3 className="text-xs font-bold tracking-wider text-slate-200 uppercase">Electrical Maintenance Orders</h3>
+            <div className="flex-1 overflow-y-auto space-y-2">
+              {assets.map(asset => (
+                <button
+                  key={asset.id}
+                  onClick={() => onSelectAsset(asset)}
+                  className={`w-full p-3 rounded-lg text-left transition-all border ${
+                    asset.id === selectedAsset.id
+                      ? 'bg-cyan-500/15 border-cyan-500 text-cyan-400 font-bold'
+                      : 'bg-slate-950/40 border-slate-800 text-slate-300 hover:bg-slate-900'
+                  }`}
+                >
+                  <div className="font-mono text-xs font-bold">{asset.id}</div>
+                  <div className="text-[10px] text-slate-400 truncate">{asset.name}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="lg:col-span-3 glass-panel p-4 flex flex-col space-y-4 overflow-y-auto h-[540px]">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xs font-bold tracking-wider text-slate-200 uppercase">Official NETA MTS-2023 Electrical Work Order</h3>
+              <button onClick={handlePrint} className="bg-cyan-500 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg">
+                🖨️ PRINT / EXPORT PDF REPORT
+              </button>
+            </div>
+
+            {selectedAsset && (
+              <div className="work-order-document">
+                <div className="wo-header">
+                  <div className="wo-brand">
+                    <span className="wo-logo">🚁 THERMOSENTINEL AI</span>
+                    <div style={{ fontSize: '10px', color: '#64748b' }}>Standards: NETA MTS-2023 / IEEE C57.12.00</div>
+                  </div>
+                  <div>WO-2026-{selectedAsset.id}-09</div>
+                </div>
+                <div className={`wo-alert-banner alert-${selectedAsset.status}`}>
+                  SEVERITY: {selectedAsset.status.toUpperCase()} - {selectedAsset.name} ({selectedAsset.standard})
+                </div>
+                <div className="wo-grid">
+                  <div>
+                    <h4>REAL THERMAL METRICS</h4>
+                    <table className="wo-table">
+                      <tbody>
+                        <tr><td>Reference Temp:</td><td>{selectedAsset.referenceTemp} °C</td></tr>
+                        <tr><td>Scan Max Temp:</td><td><strong>{selectedAsset.currentScanTemp.toFixed(1)} °C</strong></td></tr>
+                        <tr><td>Delta T (ΔT Anomaly):</td><td><strong>+{deltaT} °C</strong></td></tr>
+                        <tr><td>Operating Load:</td><td>{selectedAsset.loadPercentage}% ({selectedAsset.actualCurrent}A / {selectedAsset.ratedCurrent}A)</td></tr>
+                        <tr><td>Specific Hotspot:</td><td>{selectedAsset.hotspotTarget}</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div>
+                    <h4>AI ROOT CAUSE DIAGNOSIS</h4>
+                    <div className="wo-text-box">{selectedAsset.diagnosis}</div>
+                  </div>
+                </div>
+                <div style={{ marginTop: '16px' }}>
+                  <h4>RECOMMENDED CORRECTIVE ACTION</h4>
+                  <div className="wo-action-box">{selectedAsset.recommendedAction}</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // MAIN REACT APP
+    function App() {
+      const [assets, setAssets] = useState(INITIAL_ASSETS);
+      const [selectedAsset, setSelectedAsset] = useState(INITIAL_ASSETS[0]);
+      const [currentView, setCurrentView] = useState('dashboard');
+      const [droneState, setDroneState] = useState('SCANNING (CONTINUOUS)');
+      const [battery, setBattery] = useState(94.0);
+      const [telemetryPackets, setTelemetryPackets] = useState([]);
+
+      useEffect(() => {
+        const timer = setInterval(() => {
+          setAssets(prev => prev.map(a => {
+            const jitter = (Math.random() - 0.5) * 0.4;
+            const newTemp = Math.max(a.referenceTemp, a.currentScanTemp + jitter);
+            return { ...a, currentScanTemp: newTemp };
+          }));
+
+          setBattery(b => Math.max(10, b - 0.01));
+
+          const now = new Date();
+          const pad = (n) => String(n).padStart(2, '0');
+          const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.${Math.floor(now.getMilliseconds() / 100)}`;
+          
+          const randomAsset = INITIAL_ASSETS[Math.floor(Math.random() * INITIAL_ASSETS.length)];
+          const pkt = {
+            timestamp: timeStr,
+            assetId: randomAsset.id,
+            sensorId: Math.floor(100 + Math.random() * 900),
+            temp: randomAsset.currentScanTemp + (Math.random() - 0.5) * 0.6,
+            current: randomAsset.actualCurrent,
+            deltaT: randomAsset.currentScanTemp - randomAsset.referenceTemp,
+            checksum: '0x' + Math.floor(Math.random() * 65535).toString(16).toUpperCase()
+          };
+
+          setTelemetryPackets(pkts => [pkt, ...pkts.slice(0, 50)]);
+        }, 800);
+
+        return () => clearInterval(timer);
+      }, []);
+
+      return (
+        <div className="flex flex-col h-screen overflow-hidden">
+          <Navbar
+            droneState={droneState}
+            battery={battery}
+            onStartMission={() => setCurrentView('map')}
+          />
+
+          <div className="flex flex-1 p-3 gap-3 overflow-hidden">
+            <Sidebar currentView={currentView} onViewChange={setCurrentView} />
+
+            <main className="flex-1 overflow-y-auto">
+              {currentView === 'dashboard' && (
+                <DashboardView assets={assets} onSelectAsset={setSelectedAsset} onNavigate={setCurrentView} />
+              )}
+              {currentView === 'map' && (
+                <FacilityMapView
+                  assets={assets}
+                  selectedAsset={selectedAsset}
+                  onSelectAsset={setSelectedAsset}
+                  onNavigate={setCurrentView}
+                  onSetDroneState={setDroneState}
+                />
+              )}
+              {currentView === 'inspector' && (
+                <ThermalInspectorView asset={selectedAsset} />
+              )}
+              {currentView === 'stream' && (
+                <TelemetryStreamView packets={telemetryPackets} />
+              )}
+              {currentView === 'analytics' && (
+                <AITrendsView asset={selectedAsset} />
+              )}
+              {currentView === 'reports' && (
+                <WorkOrdersView assets={assets} selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} />
+              )}
+            </main>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
